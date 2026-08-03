@@ -5,7 +5,7 @@
 #define custom_bar 20
 #define bar_visible false
 
-#define background_wallpaper "/home/prod/wallpaper/wallpaperr.png"
+#define background_wallpaper "wallpaperdir add it here"
 
 #define autoexec1 "pipewire &"
 #define autoexec2 "pipewire-pulse &"
