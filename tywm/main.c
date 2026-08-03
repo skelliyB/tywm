@@ -1,3 +1,4 @@
+#include <X11/X.h>
 #include <stdio.h>
 #include <X11/Xlib.h>
 #include <X11/cursorfont.h>
@@ -236,7 +237,9 @@ int main() {
     for (int i = 0; i < 9; i++) {
         char key[2] = { '1' + i, '\0' };
         grabKey(key, Mod1Mask, dpy, root);
+        grabKey(key, Mod1Mask | ShiftMask, dpy, root);
     }
+  
     spawn_wallpaper(background_wallpaper);
     autoexecs();
     while (running) {
@@ -276,7 +279,22 @@ int main() {
                 }
             }
 
-            if (event.xkey.state & Mod1Mask) {
+            if ((event.xkey.state & Mod1Mask) &&
+                    (event.xkey.state & ShiftMask)) {
+                for (int i = 0; i < 9; i++) {
+                    char key[2] = { '1' + i, '\0' };
+                    KeySym sym = XStringToKeysym(key);
+                    if (event.xkey.keycode == XKeysymToKeycode(dpy, sym)) {
+                        Client *c = get_focused_client();
+                    if (c)
+                        move_to_workspace(dpy, c, i);
+                            break;
+                    }
+                }
+            }
+
+            if ((event.xkey.state & Mod1Mask) &&
+                !(event.xkey.state & ShiftMask)) {
                 for (int i = 0; i < 9; i++) {
                     char key[2] = { '1' + i, '\0' };
                     KeySym sym = XStringToKeysym(key);
@@ -910,4 +928,27 @@ int is_dialog(Display *dpy, Window w)
     }
 
     return 0;
+}
+
+
+void move_to_workspace(Display *dpy, Client *c, int target_workspace)
+{
+    if (!c || !c->mapped)
+        return;
+
+    c->workspace = target_workspace;
+
+    if (target_workspace == current_workspace) {
+        XMapWindow(dpy, c->window);
+        c->mapped = 1;
+    } else {
+        XUnmapWindow(dpy, c->window);
+        c->mapped = 0;
+    }
+
+    if (target_workspace != current_workspace) {
+        c->focused = false;
+    }
+
+    tile(dpy, clients, client_count);
 }
