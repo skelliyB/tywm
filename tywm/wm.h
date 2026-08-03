@@ -47,5 +47,6 @@ void get_window_title(Display *dpy, Window w, char *title, size_t size);
 void unfloat_client(Display *dpy, Client *c);
 void switch_workspace(Display *dpy, int target_workspace);
 int is_dialog(Display *dpy, Window w);
+void move_to_workspace(Display *dpy, Client *c, int target_workspace);
 
 #endif
