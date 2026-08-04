@@ -89,6 +89,7 @@ typedef struct {
     char focus_next_keybind[32];
     char unfloat_keybind[32];
     char toggle_bar_keybind[32];
+    char reload_key[32];
     char launcher_keybind[32];
 
 } Config;
@@ -310,10 +311,8 @@ int main() {
                     }
                 }
             }
-            if ((event.xkey.state & Mod1Mask) &&
-                (event.xkey.state & ShiftMask) &&
-                event.xkey.keycode ==
-                    XKeysymToKeycode(dpy, XStringToKeysym(config.launcher_keybind)))
+           
+            if (event.xkey.state & Mod1Mask && event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(config.reload_key)))
             {
                load_config();
 
@@ -1116,6 +1115,10 @@ void load_config(void)
             strncpy(config.terminal_keybind, value,
                     sizeof(config.terminal_keybind) - 1);
         }
+        else if (strcmp(key, "reload_keybind") == 0) {
+            strncpy(config.reload_key, value,
+                    sizeof(config.reload_key) - 1);
+        }
 
         else if (strcmp(key, "kill_keybind") == 0) {
             strncpy(config.kill_keybind, value,
@@ -1167,7 +1170,7 @@ void set_default_config()
     config.bar_visible = true;
 
     strcpy(config.background_wallpaper,
-           "standard_wallpaper_dir");
+           "/home/prod/wallpaper/wallpaperr.png");
 
     config.border_width = 3;
     strcpy(config.border_color, "#3e5f9c");
@@ -1179,4 +1182,5 @@ void set_default_config()
     strcpy(config.unfloat_keybind, "v");
     strcpy(config.toggle_bar_keybind, "b");
     strcpy(config.launcher_keybind, "r");
+    strcpy(config.reload_key, "p");
 }
