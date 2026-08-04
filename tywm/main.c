@@ -8,13 +8,13 @@
 #include <X11/Xlib.h>
 #include "bar.h"
 #include <X11/Xatom.h>
+#include <pwd.h>
 #include <X11/Xutil.h>
 #include <string.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <time.h>
-#include "configuration.h"
 #include "wm.h"
 #include <X11/keysym.h>
 #include <signal.h>
@@ -23,10 +23,10 @@
 
 
 int running = 1;
+int BAR_HEIGHT = 20;
 
 
 
-bool bar_enabled = bar_visible;
 
 void spawn(const char *cmd);
 
@@ -68,6 +68,35 @@ void grabKey(const char *key, unsigned int mod, Display *dpy, Window root)
 Client *get_focused_client(void);
 
 
+typedef struct {
+    char terminal[256];
+    char launcher[256];
+
+    char bar_color[32];
+    int bar_height;
+    bool bar_visible;
+
+    char background_wallpaper[512];
+
+    char autoexec[6][512];
+
+    int border_width;
+    char border_color[32];
+
+    char float_keybind[32];
+    char terminal_keybind[32];
+    char kill_keybind[32];
+    char focus_next_keybind[32];
+    char unfloat_keybind[32];
+    char toggle_bar_keybind[32];
+    char launcher_keybind[32];
+
+} Config;
+
+
+
+Config config;
+bool bar_enabled;
 
 #define MAX_CLIENTS 64
 #define MAX_WORKSPACES 9
@@ -95,7 +124,7 @@ int xerror(Display *dpy, XErrorEvent *e)
 int spawn_wallpaper(const char *cmd) {
     if (fork() == 0) {
         setsid();
-        execvp("feh", (char *[]){"feh", "--bg-fill", background_wallpaper, NULL});
+        execvp("feh", (char *[]){"feh", "--bg-fill", config.background_wallpaper, NULL});
         _exit(1);
     }
     return 0;
@@ -103,12 +132,12 @@ int spawn_wallpaper(const char *cmd) {
 
 
 void autoexecs() {
-    if (autoexec1[0] != '\0') spawn(autoexec1);
-    if (autoexec2[0] != '\0') spawn(autoexec2);
-    if (autoexec3[0] != '\0') spawn(autoexec3);
-    if (autoexec4[0] != '\0') spawn(autoexec4);
-    if (autoexec5[0] != '\0') spawn(autoexec5);
-    if (autoexec6[0] != '\0') spawn(autoexec6);
+    if (config.autoexec[0] != '\0') spawn(config.autoexec[0]);
+    if (config.autoexec[1] != '\0') spawn(config.autoexec[1]);
+    if (config.autoexec[2] != '\0') spawn(config.autoexec[2]);
+    if (config.autoexec[3] != '\0') spawn(config.autoexec[3]);
+    if (config.autoexec[4] != '\0') spawn(config.autoexec[4]);
+    if (config.autoexec[5] != '\0') spawn(config.autoexec[5]);
 }
 
 GC gc;
@@ -118,6 +147,9 @@ int current_workspace = 0;
 int main() {
     printf("i fucking hate c");
     unsetenv("WAYLAND_DISPLAY");
+    set_default_config();
+    load_config();
+    bar_enabled = config.bar_visible;
     setvbuf(stdout, NULL, _IONBF, 0);
     signal(SIGCHLD, SIG_IGN);
     Display *dpy = XOpenDisplay(NULL);
@@ -226,13 +258,13 @@ int main() {
     );
     */
     
-    grabKey(terminal_keybind, Mod4Mask, dpy, root);
-    grabKey(float_keybind, Mod1Mask, dpy, root);
-    grabKey(kill_keybind, Mod1Mask, dpy, root);
-    grabKey(focus_next_keybind, Mod1Mask, dpy, root);
-    grabKey(unfloat_keybind, Mod1Mask, dpy, root);
-    grabKey(toggle_bar_keybind, Mod1Mask, dpy, root);
-    grabKey(launcher_keybind, Mod1Mask, dpy, root);
+    grabKey(config.terminal_keybind, Mod4Mask, dpy, root);
+    grabKey(config.float_keybind, Mod1Mask, dpy, root);
+    grabKey(config.kill_keybind, Mod1Mask, dpy, root);
+    grabKey(config.focus_next_keybind, Mod1Mask, dpy, root);
+    grabKey(config.unfloat_keybind, Mod1Mask, dpy, root);
+    grabKey(config.toggle_bar_keybind, Mod1Mask, dpy, root);
+    grabKey(config.launcher_keybind, Mod1Mask, dpy, root);
 
     for (int i = 0; i < 9; i++) {
         char key[2] = { '1' + i, '\0' };
@@ -240,7 +272,7 @@ int main() {
         grabKey(key, Mod1Mask | ShiftMask, dpy, root);
     }
   
-    spawn_wallpaper(background_wallpaper);
+    spawn_wallpaper(config.background_wallpaper);
     autoexecs();
     while (running) {
         XEvent event;
@@ -251,13 +283,13 @@ int main() {
         case KeyPress:
 
             if (event.xkey.state & Mod4Mask &&
-                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(terminal_keybind)))
+                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(config.terminal_keybind)))
             {
-                spawn(terminal);
+                spawn(config.terminal);
             }
 
             if (event.xkey.state & Mod1Mask &&
-                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(kill_keybind)))
+                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(config.kill_keybind)))
             {
                 for (int i = 0; i < client_count; i++) {
                     if (clients[i].focused) {
@@ -268,7 +300,7 @@ int main() {
             }
 
             if (event.xkey.state & Mod1Mask &&
-                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(float_keybind)))
+                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(config.float_keybind)))
             {
                 for (int i = 0; i < client_count; i++) {
                     if (clients[i].focused) {
@@ -277,6 +309,37 @@ int main() {
                         break;
                     }
                 }
+            }
+            if ((event.xkey.state & Mod1Mask) &&
+                (event.xkey.state & ShiftMask) &&
+                event.xkey.keycode ==
+                    XKeysymToKeycode(dpy, XStringToKeysym(config.launcher_keybind)))
+            {
+               load_config();
+
+                BAR_HEIGHT = config.bar_height;
+                bar_enabled = config.bar_visible;
+
+                SetupColors(dpy);
+
+                XSetWindowBackground(
+                    dpy,
+                    bar_window,
+                    bar_color_pixel
+                );
+
+                XClearWindow(
+                    dpy,
+                    bar_window
+                );
+
+                draw_bar(dpy, bar_window, gc);
+
+                tile(dpy, clients, client_count);
+
+                spawn_wallpaper(config.background_wallpaper);
+
+                XFlush(dpy);
             }
 
             if ((event.xkey.state & Mod1Mask) &&
@@ -306,7 +369,7 @@ int main() {
             }
 
             if (event.xkey.state & Mod1Mask &&
-                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(toggle_bar_keybind)))
+                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(config.toggle_bar_keybind)))
             {
                 if (bar_enabled) {
                     hide_bar(dpy);
@@ -316,7 +379,7 @@ int main() {
             }
 
             if (event.xkey.state & Mod1Mask &&
-                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(unfloat_keybind)))
+                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(config.unfloat_keybind)))
             {
                 for (int i = 0; i < client_count; i++) {
                     if (clients[i].focused) {
@@ -326,14 +389,16 @@ int main() {
                 }
             }
 
-            if (event.xkey.state & Mod1Mask &&
-                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(launcher_keybind)))
+            if ((event.xkey.state & Mod1Mask) &&
+                !(event.xkey.state & ShiftMask) &&
+                event.xkey.keycode ==
+                    XKeysymToKeycode(dpy, XStringToKeysym(config.launcher_keybind)))
             {
-                spawn(launcher);
+                spawn(config.launcher);
             }
 
             if (event.xkey.state & Mod1Mask &&
-                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(focus_next_keybind)))
+                event.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(config.focus_next_keybind)))
             {
                 for (int i = 0; i < client_count; i++) {
                     if (clients[i].focused) {
@@ -394,7 +459,7 @@ int main() {
                 c->width = attr.width;
                 c->height = attr.height;
 
-                XSetWindowBorderWidth(dpy, w, border_width);
+                XSetWindowBorderWidth(dpy, w, config.border_width);
 
                 get_window_title(
                     dpy,
@@ -643,7 +708,7 @@ void tile(Display *dpy, Client *clients, int client_count) {
         return;
 
     int width = DisplayWidth(dpy, DefaultScreen(dpy)) / visible_count;
-    int bar_offset = custom_bar;
+    int bar_offset = BAR_HEIGHT;
 
     int height = DisplayHeight(
         dpy,
@@ -654,7 +719,7 @@ void tile(Display *dpy, Client *clients, int client_count) {
     for (int i = 0; i < client_count; i++) {
         Client *c = &clients[i];
         if (c->mapped && !c->floating && c->workspace == current_workspace) {
-            int bw = border_width;
+            int bw = config.border_width;
 
             XMoveResizeWindow(
                 dpy,
@@ -730,7 +795,7 @@ void focus_client(Display *dpy, Client *c)
     c->focused = true;
     
 
-    XSetWindowBorderWidth(dpy, c->window, border_width);
+    XSetWindowBorderWidth(dpy, c->window, config.border_width);
 
     XSetWindowBorder(
         dpy,
@@ -805,10 +870,10 @@ void SetupColors(Display *dpy)
 
     XColor color;
 
-    XParseColor(dpy, cmap, border_color, &color);
+    XParseColor(dpy, cmap, config.border_color, &color);
     XAllocColor(dpy, cmap, &color);
     focused_color = color.pixel;
-    XParseColor(dpy, cmap, bar_color, &color);
+    XParseColor(dpy, cmap, config.bar_color, &color);
     XAllocColor(dpy, cmap, &color);
     bar_color_pixel = color.pixel;
 
@@ -951,4 +1016,167 @@ void move_to_workspace(Display *dpy, Client *c, int target_workspace)
     }
 
     tile(dpy, clients, client_count);
+}
+
+
+
+void load_config(void)
+{
+    struct passwd *pw = getpwuid(getuid());
+
+    if (!pw) {
+        perror("getpwuid");
+        return;
+    }
+
+    char path[512];
+
+    snprintf(
+        path,
+        sizeof(path),
+        "%s/.config/tywm/tywm.conf",
+        pw->pw_dir
+    );
+
+    FILE *config_file = fopen(path, "r");
+
+    if (!config_file) {
+        perror("fopen");
+        return;
+    }
+
+    char line[512];
+
+    while (fgets(line, sizeof(line), config_file)) {
+        char key[128];
+        char value[384];
+
+        // skip invalid lines
+        if (sscanf(line, "%127[^=]=%383[^\n]", key, value) != 2)
+            continue;
+
+        if (strcmp(key, "terminal") == 0) {
+            strncpy(config.terminal, value, sizeof(config.terminal) - 1);
+        }
+
+        else if (strcmp(key, "launcher") == 0) {
+            strncpy(config.launcher, value, sizeof(config.launcher) - 1);
+        }
+
+        else if (strcmp(key, "bar_color") == 0) {
+            strncpy(config.bar_color, value, sizeof(config.bar_color) - 1);
+        }
+
+        else if (strcmp(key, "bar_height") == 0) {
+            config.bar_height = atoi(value);
+        }
+
+        else if (strcmp(key, "bar_visible") == 0) {
+            config.bar_visible = parse_bool(value);
+        }
+
+        else if (strcmp(key, "background_wallpaper") == 0) {
+            strncpy(
+                config.background_wallpaper,
+                value,
+                sizeof(config.background_wallpaper) - 1
+            );
+        }
+
+        else if (strcmp(key, "border_width") == 0) {
+            config.border_width = atoi(value);
+        }
+
+        else if (strcmp(key, "border_color") == 0) {
+            strncpy(
+                config.border_color,
+                value,
+                sizeof(config.border_color) - 1
+            );
+        }
+
+        else if (strncmp(key, "autoexec", 8) == 0) {
+            int index = atoi(key + 8) - 1;
+
+            if (index >= 0 && index < 6) {
+                strncpy(
+                    config.autoexec[index],
+                    value,
+                    sizeof(config.autoexec[index]) - 1
+                );
+            }
+        }
+
+        else if (strcmp(key, "float_keybind") == 0) {
+            strncpy(config.float_keybind, value,
+                    sizeof(config.float_keybind) - 1);
+        }
+
+        else if (strcmp(key, "terminal_keybind") == 0) {
+            strncpy(config.terminal_keybind, value,
+                    sizeof(config.terminal_keybind) - 1);
+        }
+
+        else if (strcmp(key, "kill_keybind") == 0) {
+            strncpy(config.kill_keybind, value,
+                    sizeof(config.kill_keybind) - 1);
+        }
+
+        else if (strcmp(key, "focus_next_keybind") == 0) {
+            strncpy(config.focus_next_keybind, value,
+                    sizeof(config.focus_next_keybind) - 1);
+        }
+
+        else if (strcmp(key, "unfloat_keybind") == 0) {
+            strncpy(config.unfloat_keybind, value,
+                    sizeof(config.unfloat_keybind) - 1);
+        }
+
+        else if (strcmp(key, "toggle_bar_keybind") == 0) {
+            strncpy(config.toggle_bar_keybind, value,
+                    sizeof(config.toggle_bar_keybind) - 1);
+        }
+
+        else if (strcmp(key, "launcher_keybind") == 0) {
+            strncpy(config.launcher_keybind, value,
+                    sizeof(config.launcher_keybind) - 1);
+        }
+    }
+
+    fclose(config_file);
+}
+
+
+bool parse_bool(char *value)
+{
+    return strcmp(value, "true") == 0 ||
+           strcmp(value, "yes") == 0 ||
+           strcmp(value, "1") == 0;
+}
+
+
+void set_default_config()
+{
+    memset(&config, 0, sizeof(Config));
+
+    strcpy(config.terminal, "kitty");
+    strcpy(config.launcher, "rofi -show drun");
+
+    strcpy(config.bar_color, "#344d5e");
+    config.bar_height = 20;
+    config.bar_visible = true;
+
+    strcpy(config.background_wallpaper,
+           "/home/prod/wallpaper/wallpaperr.png");
+
+    config.border_width = 3;
+    strcpy(config.border_color, "#3e5f9c");
+
+    strcpy(config.float_keybind, "f");
+    strcpy(config.terminal_keybind, "Return");
+    strcpy(config.kill_keybind, "c");
+    strcpy(config.focus_next_keybind, "k");
+    strcpy(config.unfloat_keybind, "v");
+    strcpy(config.toggle_bar_keybind, "b");
+    strcpy(config.launcher_keybind, "r");
 }
