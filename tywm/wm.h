@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <X11/Xlib.h>
 
-#define BAR_HEIGHT 20
+extern int BAR_HEIGHT;
 
 typedef struct {
     Window window;
@@ -25,6 +25,9 @@ typedef struct {
     int mapped;
     int workspace;
 } Client;
+
+
+
 
 
 extern bool bar_enabled;
@@ -48,5 +51,8 @@ void unfloat_client(Display *dpy, Client *c);
 void switch_workspace(Display *dpy, int target_workspace);
 int is_dialog(Display *dpy, Window w);
 void move_to_workspace(Display *dpy, Client *c, int target_workspace);
+bool parse_bool(char *value);
+void load_config();
+void set_default_config();
 
 #endif
