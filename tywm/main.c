@@ -1167,7 +1167,7 @@ void set_default_config()
     config.bar_visible = true;
 
     strcpy(config.background_wallpaper,
-           "/home/prod/wallpaper/wallpaperr.png");
+           "standard_wallpaper_dir");
 
     config.border_width = 3;
     strcpy(config.border_color, "#3e5f9c");
