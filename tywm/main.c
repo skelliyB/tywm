@@ -1269,6 +1269,6 @@ void fullscrened(Display *dpy, Client *c) {
         
     }
     if (c->fullscrened == True) {
-        //this is soon idk
+        
     }
 }
