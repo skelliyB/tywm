@@ -83,9 +83,10 @@ void hide_bar(Display *dpy)
     XUnmapWindow(dpy, bar_window);
 
     bar_enabled = false;
+    BAR_HEIGHT = 0;
 
-    tile(dpy, clients, client_count);
-    XFlush(dpy);
+    tile(dpy, clients, client_count, config.tile_mode);
+    XFlush(dpy); 
 }
 
 
@@ -97,7 +98,8 @@ void show_bar(Display *dpy)
     XMapRaised(dpy, bar_window);
 
     bar_enabled = true;
+    BAR_HEIGHT = 20;
 
-    tile(dpy, clients, client_count);
+    tile(dpy, clients, client_count, config.tile_mode);
     XFlush(dpy);
 }
