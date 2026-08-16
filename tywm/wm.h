@@ -21,13 +21,41 @@ typedef struct {
     bool floating;
     bool focused;
     bool resising;
-
+    bool fullscrened;
     int mapped;
     int workspace;
 } Client;
 
 
 
+typedef struct {
+    char terminal[256];
+    char launcher[256];
+
+    char bar_color[32];
+    int bar_height;
+    bool bar_visible;
+
+    char background_wallpaper[512];
+
+    char autoexec[6][512];
+
+    int border_width;
+    char border_color[32];
+
+    char float_keybind[32];
+    char terminal_keybind[32];
+    char kill_keybind[32];
+    char focus_next_keybind[32];
+    char unfloat_keybind[32];
+    char toggle_bar_keybind[32];
+    char reload_key[32];
+    int tile_mode;
+    char launcher_keybind[32];
+
+} Config;
+
+extern Config config;
 
 
 extern bool bar_enabled;
@@ -41,7 +69,7 @@ extern int client_count;
 
 Client *get_focused_client(void);
 
-void tile(Display *dpy, Client *clients, int client_count);
+void tile(Display *dpy, Client *clients, int client_count, int tile_mode);
 void focus_client(Display *dpy, Client *c);
 void SetupColors(Display *dpy);
 void float_client(Display *dpy, Client *c, int x, int y,
