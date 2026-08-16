@@ -68,31 +68,6 @@ void grabKey(const char *key, unsigned int mod, Display *dpy, Window root)
 Client *get_focused_client(void);
 
 
-typedef struct {
-    char terminal[256];
-    char launcher[256];
-
-    char bar_color[32];
-    int bar_height;
-    bool bar_visible;
-
-    char background_wallpaper[512];
-
-    char autoexec[6][512];
-
-    int border_width;
-    char border_color[32];
-
-    char float_keybind[32];
-    char terminal_keybind[32];
-    char kill_keybind[32];
-    char focus_next_keybind[32];
-    char unfloat_keybind[32];
-    char toggle_bar_keybind[32];
-    char reload_key[32];
-    char launcher_keybind[32];
-
-} Config;
 
 
 
@@ -294,6 +269,7 @@ int main() {
             {
                 for (int i = 0; i < client_count; i++) {
                     if (clients[i].focused) {
+                        
                         XKillClient(dpy, clients[i].window);
                         break;
                     }
@@ -334,7 +310,7 @@ int main() {
 
                 draw_bar(dpy, bar_window, gc);
 
-                tile(dpy, clients, client_count);
+                tile(dpy, clients, client_count, config.tile_mode);
 
                 spawn_wallpaper(config.background_wallpaper);
 
@@ -482,7 +458,7 @@ int main() {
                     c->y = ny;
                 }
 
-                tile(dpy, clients, client_count);
+                tile(dpy, clients, client_count, config.tile_mode);
 
                 focus_client(dpy, c);
 
@@ -515,7 +491,7 @@ int main() {
             if (was_focused && client_count > 0)
                 focus_client(dpy, &clients[0]);   // or pick "next mapped" if you prefer
 
-            tile(dpy, clients, client_count);
+            tile(dpy, clients, client_count, config.tile_mode);
             break;
         }
             break;
@@ -543,7 +519,7 @@ int main() {
                 }
             }
 
-            tile(dpy, clients, client_count);
+            tile(dpy, clients, client_count, config.tile_mode);
             break;
         }
        case ConfigureRequest:
@@ -560,7 +536,7 @@ int main() {
                 }
 
                 if (c && !c->floating) {
-                    tile(dpy, clients, client_count);
+                    tile(dpy, clients, client_count, config.tile_mode);
                 }
                 else {
                     XWindowChanges changes;
@@ -692,43 +668,106 @@ int main() {
 
 
 
-void tile(Display *dpy, Client *clients, int client_count) {
+void tile(Display *dpy, Client *clients, int client_count, int tile_mode) {
 
-    int visible_count = 0;
-    for (int i = 0; i < client_count; i++) {
-        if (clients[i].mapped && !clients[i].floating &&
-            clients[i].workspace == current_workspace)
-        {
-            visible_count++;
+    if (tile_mode==1) {
+            int visible_count = 0;
+        for (int i = 0; i < client_count; i++) {
+            if (clients[i].mapped && !clients[i].floating &&
+                clients[i].workspace == current_workspace)
+            {
+                visible_count++;
+            }
         }
-    }
 
-    if (visible_count == 0)
-        return;
+        if (visible_count == 0)
+            return;
 
-    int width = DisplayWidth(dpy, DefaultScreen(dpy)) / visible_count;
-    int bar_offset = BAR_HEIGHT;
+        int width = DisplayWidth(dpy, DefaultScreen(dpy)) / visible_count;
+        int bar_offset = BAR_HEIGHT;
 
-    int height = DisplayHeight(
-        dpy,
-        DefaultScreen(dpy)
-    ) - bar_offset;
+        int height = DisplayHeight(
+            dpy,
+            DefaultScreen(dpy)
+        ) - bar_offset;
 
-    int slot = 0;
-    for (int i = 0; i < client_count; i++) {
-        Client *c = &clients[i];
-        if (c->mapped && !c->floating && c->workspace == current_workspace) {
-            int bw = config.border_width;
+        int slot = 0;
+        for (int i = 0; i < client_count; i++) {
+            Client *c = &clients[i];
+            if (c->mapped && !c->floating && c->workspace == current_workspace) {
+                int bw = config.border_width;
 
-            XMoveResizeWindow(
-                dpy,
-                c->window,
-                slot * width,
-                bar_offset,
-                width - 2 * bw,
-                height - 2 * bw
-            );
-            slot++;
+                XMoveResizeWindow(
+                    dpy,
+                    c->window,
+                    slot * width,
+                    bar_offset,
+                    width - 2 * bw,
+                    height - 2 * bw
+                );
+                slot++;
+            }
+        }
+   
+    }else if (tile_mode == 2) {
+
+        int visible_count = 0;
+        for (int i = 0; i < client_count; i++) {
+            if (clients[i].mapped && !clients[i].floating &&
+                clients[i].workspace == current_workspace)
+            {
+                visible_count++;
+            }
+        }
+
+        if (visible_count == 0)
+            return;
+
+        int bar_offset = BAR_HEIGHT;
+        int screen_width = DisplayWidth(dpy, DefaultScreen(dpy));
+        int screen_height = DisplayHeight(dpy, DefaultScreen(dpy)) - bar_offset;
+        int bw = config.border_width;
+
+        /* Master area takes a fraction of the screen width.
+           Falls back to full width if there's only one client. */
+        float master_ratio = 0.55f;
+        int master_width = (visible_count == 1)
+            ? screen_width
+            : (int)(screen_width * master_ratio);
+        int stack_width = screen_width - master_width;
+        int stack_count = visible_count - 1;
+
+        int slot = 0;
+        for (int i = 0; i < client_count; i++) {
+            Client *c = &clients[i];
+            if (c->mapped && !c->floating && c->workspace == current_workspace) {
+
+                if (slot == 0) {
+                    /* Master window: full height on the left */
+                    XMoveResizeWindow(
+                        dpy,
+                        c->window,
+                        0,
+                        bar_offset,
+                        master_width - 2 * bw,
+                        screen_height - 2 * bw
+                    );
+                } else {
+                    /* Stack windows: stacked vertically on the right */
+                    int stack_index = slot - 1;
+                    int stack_height = screen_height / stack_count;
+
+                    XMoveResizeWindow(
+                        dpy,
+                        c->window,
+                        master_width,
+                        bar_offset + stack_index * stack_height,
+                        stack_width - 2 * bw,
+                        stack_height - 2 * bw
+                    );
+                }
+                slot++;
+            }
         }
     }
 }
@@ -772,7 +811,7 @@ void unfloat_client(Display *dpy, Client *c)
 
     c->floating = false;
 
-    tile(dpy, clients, client_count);
+    tile(dpy, clients, client_count, config.tile_mode);
     XFlush(dpy);
 }
 
@@ -810,7 +849,7 @@ void focus_client(Display *dpy, Client *c)
         RevertToPointerRoot,
         CurrentTime
     );
-
+    tile(dpy, clients, client_count, config.tile_mode);
     XFlush(dpy);
 }
 void spawn(const char *cmd) {
@@ -842,7 +881,7 @@ void switch_workspace(Display *dpy, int target_workspace)
         }
     }
 
-    tile(dpy, clients, client_count);
+    tile(dpy, clients, client_count, config.tile_mode);
 
     draw_bar(dpy, bar_window, gc);
 
@@ -946,6 +985,41 @@ void get_window_title(Display *dpy, Window w, char *title, size_t size)
     title[0] = '\0';
 }
 
+void kill_client(Display *dpy, Window w)
+{
+    Atom *protocols = NULL;
+    int n = 0;
+
+    Atom wm_delete = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
+    Atom wm_protocols = XInternAtom(dpy, "WM_PROTOCOLS", False);
+
+    if (XGetWMProtocols(dpy, w, &protocols, &n)) {
+        for (int i = 0; i < n; i++) {
+            if (protocols[i] == wm_delete) {
+                XEvent ev = {0};
+
+                ev.xclient.type = ClientMessage;
+                ev.xclient.window = w;
+                ev.xclient.message_type = wm_protocols;
+                ev.xclient.format = 32;
+                ev.xclient.data.l[0] = wm_delete;
+                ev.xclient.data.l[1] = CurrentTime;
+
+                XSendEvent(dpy, w, False, NoEventMask, &ev);
+                XFree(protocols);
+                return;
+            }
+        }
+
+        XFree(protocols);
+    }
+
+    XKillClient(dpy, w);
+}
+
+void application_hints() {
+    
+}
 
 Client *get_focused_client(void)
 {
@@ -1014,7 +1088,7 @@ void move_to_workspace(Display *dpy, Client *c, int target_workspace)
         c->focused = false;
     }
 
-    tile(dpy, clients, client_count);
+    tile(dpy, clients, client_count, config.tile_mode);
 }
 
 
@@ -1072,6 +1146,9 @@ void load_config(void)
 
         else if (strcmp(key, "bar_visible") == 0) {
             config.bar_visible = parse_bool(value);
+        }
+        else if (strcmp(key, "tile_mode") == 0) {
+            config.tile_mode = atoi(value);
         }
 
         else if (strcmp(key, "background_wallpaper") == 0) {
@@ -1170,7 +1247,7 @@ void set_default_config()
     config.bar_visible = true;
 
     strcpy(config.background_wallpaper,
-           "default_wallpaper_background");
+           "/home/prod/wallpaper/wallpaperr.png");
 
     config.border_width = 3;
     strcpy(config.border_color, "#3e5f9c");
@@ -1183,4 +1260,15 @@ void set_default_config()
     strcpy(config.toggle_bar_keybind, "b");
     strcpy(config.launcher_keybind, "r");
     strcpy(config.reload_key, "p");
+    config.tile_mode = 1;
+}
+
+
+void fullscrened(Display *dpy, Client *c) {
+    if (c->fullscrened) {
+        
+    }
+    if (c->fullscrened == True) {
+        //this is soon idk
+    }
 }
